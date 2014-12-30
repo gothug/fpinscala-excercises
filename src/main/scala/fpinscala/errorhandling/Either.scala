@@ -29,9 +29,23 @@ case class Left[+E](get: E) extends Either[E,Nothing]
 case class Right[+A](get: A) extends Either[Nothing,A]
 
 object Either {
-  def traverse[E,A,B](es: List[A])(f: A => Either[E, B]): Either[E, List[B]] = sys.error("todo")
+  def traverse[E,A,B](es: List[A])(f: A => Either[E, B]): Either[E, List[B]] =
+    es match {
+      case List() => Right(List())
+      case x :: xs => f(x) match {
+        case Left(l)  => Left(l)
+        // the expression below is identical in its meaning to:
+        //   case Right(r) => Right(r) flatMap (rr => traverse(xs)(f).map(xsxs => rr :: xsxs))
+        case Right(r) =>
+          for {
+            rr <- Right(r)
+            xsxs <- traverse(xs)(f)
+          } yield rr :: xsxs
+      }
+    }
 
-  def sequence[E,A](es: List[Either[E,A]]): Either[E,List[A]] = sys.error("todo")
+  def sequence[E, A](es: List[Either[E, A]]): Either[E,List[A]] =
+    traverse(es)(x => x)
 
   def mean(xs: IndexedSeq[Double]): Either[String, Double] =
     if (xs.isEmpty)
@@ -91,6 +105,19 @@ object Test {
       Left("foo").map2(Right(5))((a: Int, b: Int) => a * b),
       Right(4).map2(Left("foo"))((a: Int, b: Int) => a * b),
       Left("foo").map2(Left("foo"))((a: Int, b: Int) => a * b)
+    )
+
+
+    println("\n")
+    println("sequence:")
+    println("---------")
+
+    printlnBulk(
+      Either.sequence(List(Right(1), Right(2), Right(3))),
+      Either.sequence(List(Left("err1"), Right(2), Right(3))),
+      Either.sequence(List(Right(1), Left("err2"), Right(3))),
+      Either.sequence(List(Left("err1"), Left("err2"), Left("err3"))),
+      Either.sequence(List())
     )
   }
 
