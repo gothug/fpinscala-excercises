@@ -18,11 +18,24 @@ trait Stream[+A] {
     case Empty => None
     case Cons(h, t) => if (f(h())) Some(h()) else t().find(f)
   }
-  def take(n: Int): Stream[A] = sys.error("todo")
+  def take(n: Int): Stream[A] = this match {
+    case Cons(h, _) if n == 1 => Cons(h, () => Empty)
+    case Cons(h, t) if n >= 1 => Cons(h, () => t().take(n - 1))
+    case _                    => Empty
+  }
 
-  def drop(n: Int): Stream[A] = sys.error("todo")
+  def drop(n: Int): Stream[A] = this match {
+    case Cons(h, t) if n == 0 => this
+    case Cons(h, t) if n > 0  => t().drop(n - 1)
+    case Empty                => Empty
+  }
 
-  def takeWhile(p: A => Boolean): Stream[A] = sys.error("todo")
+  def takeWhile(p: A => Boolean): Stream[A] = this match {
+    case Cons(h, t) =>
+      if (p(h())) Cons(h, () => t() takeWhile p)
+      else Empty
+    case Empty => Empty
+  }
 
   def forAll(p: A => Boolean): Boolean = sys.error("todo")
 
@@ -70,8 +83,35 @@ object Test {
       Stream(1 to 100),
       Stream(),
       Stream(1 to 100: _*).toList,
-      Stream(1 to 10000000: _*).toList.length,
+      Stream(1 to 1000000: _*).toList.length,
       Stream().toList
+    )
+
+    println("\n")
+    println("take:")
+    println("---------")
+
+    printlnBulk(
+      Stream(1 to 10: _*).take(5).toList,
+      Stream().take(5).toList
+    )
+
+    printlnBulk(
+      "\n",
+      "drop:",
+      "-----",
+      Stream(1 to 10: _*).drop(3).toList,
+      Stream(1 to 10: _*).drop(100).toList
+    )
+
+    printlnBulk(
+      "\n",
+      "takeWhile:",
+      "----------",
+      Stream(1, 2, 3, 4).takeWhile(_ > 0).toList,
+      Stream(1, 2, -3, 4).takeWhile(_ > 0).toList,
+      Stream(-1, 2, -3, 4).takeWhile(_ > 0).toList,
+      (Stream(): Stream[Int]).takeWhile(_ > 0).toList
     )
   }
 
