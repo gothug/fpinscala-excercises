@@ -89,9 +89,16 @@ object Stream {
     else cons(as.head, apply(as.tail: _*))
 
   val ones: Stream[Int] = Stream.cons(1, ones)
-  def from(n: Int): Stream[Int] = sys.error("todo")
 
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = sys.error("todo")
+
+  def constant[A](a: A): Stream[A] = {
+    lazy val s: Stream[A] = cons(a, s)
+    s
+  }
+
+  def from(n: Int): Stream[Int] =
+   cons(n, from(n + 1))
 }
 
 object Test {
@@ -163,7 +170,6 @@ object Test {
     printlnBulk(
       "\n",
       "filter:",
-      "----",
       Stream(-1, 2, 3, -4).filter(_ > 0).toList,
       Stream(-1, -4).filter(_ > 0).toList
     )
@@ -171,8 +177,19 @@ object Test {
     printlnBulk(
       "\n",
       "flatMap:",
-      "----",
       Stream(1, 2, 3, 4).flatMap(x => Stream(x, x)).toList
+    )
+
+    printlnBulk(
+      "\n",
+      "constant:",
+      constant(5).take(5).toList
+    )
+
+    printlnBulk(
+      "\n",
+      "from:",
+      from(10).take(10).toList
     )
   }
 
