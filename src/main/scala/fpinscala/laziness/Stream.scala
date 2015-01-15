@@ -1,6 +1,6 @@
 package fpinscala.laziness
 
-//import Stream._
+import Stream._
 
 trait Stream[+A] {
 
@@ -36,6 +36,18 @@ trait Stream[+A] {
       else Empty
     case Empty => Empty
   }
+
+  def map[B](p: A => B): Stream[B] =
+    foldRight(Empty: Stream[B])((h, t) => Cons(() => p(h), () => t))
+
+  def filter(p: A => Boolean): Stream[A] =
+    foldRight(empty[A])((h, t) => if (p(h)) cons(h, t) else t)
+
+  def append[B>:A](s: => Stream[B]): Stream[B] =
+    foldRight(s)((h, t) => cons(h, t))
+
+  def flatMap[B](p: A => Stream[B]): Stream[B] =
+    foldRight(empty[B])((h, t) => p(h) append t)
 
   def forAll(p: A => Boolean): Boolean = this match {
     case Cons(h, t) => if (p(h())) t().forAll(p) else false
@@ -139,6 +151,28 @@ object Test {
       Stream(1, 2, -3, 4).takeWhile(_ > 0).toList,
       Stream(-1, 2, -3, 4).takeWhile(_ > 0).toList,
       (Stream(): Stream[Int]).takeWhile(_ > 0).toList
+    )
+
+    printlnBulk(
+      "\n",
+      "map:",
+      "----",
+      Stream(1, 2, 3, 4).map(_ * 2).toList
+    )
+
+    printlnBulk(
+      "\n",
+      "filter:",
+      "----",
+      Stream(-1, 2, 3, -4).filter(_ > 0).toList,
+      Stream(-1, -4).filter(_ > 0).toList
+    )
+
+    printlnBulk(
+      "\n",
+      "flatMap:",
+      "----",
+      Stream(1, 2, 3, 4).flatMap(x => Stream(x, x)).toList
     )
   }
 
