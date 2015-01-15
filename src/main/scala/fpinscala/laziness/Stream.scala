@@ -37,7 +37,16 @@ trait Stream[+A] {
     case Empty => Empty
   }
 
-  def forAll(p: A => Boolean): Boolean = sys.error("todo")
+  def forAll(p: A => Boolean): Boolean = this match {
+    case Cons(h, t) => if (p(h())) t().forAll(p) else false
+    case Empty      => true
+  }
+
+  def forAllViaFoldRight(p: A => Boolean): Boolean =
+    foldRight(true)((a, b) => p(a) && b)
+
+  def takeWhileViaFoldRight(p: A => Boolean): Stream[A] =
+    foldRight(Empty: Stream[A])((h, t) => if (p(h)) Cons(() => h, () => t) else Empty)
 
   def startsWith[B](s: Stream[B]): Boolean = sys.error("todo")
 
@@ -108,6 +117,24 @@ object Test {
       "\n",
       "takeWhile:",
       "----------",
+      Stream(1, 2, 3, 4).takeWhile(_ > 0).toList,
+      Stream(1, 2, -3, 4).takeWhile(_ > 0).toList,
+      Stream(-1, 2, -3, 4).takeWhile(_ > 0).toList,
+      (Stream(): Stream[Int]).takeWhile(_ > 0).toList
+    )
+
+    printlnBulk(
+      "\n",
+      "forAllViaFoldRight:",
+      "-------------------",
+      Stream(1, 2, 3, -4).forAllViaFoldRight(_ > 0),
+      Stream(1, 2, 3).forAllViaFoldRight(_ > 0)
+    )
+
+    printlnBulk(
+      "\n",
+      "takeWhileViaFoldRight:",
+      "----------------------",
       Stream(1, 2, 3, 4).takeWhile(_ > 0).toList,
       Stream(1, 2, -3, 4).takeWhile(_ > 0).toList,
       Stream(-1, 2, -3, 4).takeWhile(_ > 0).toList,
