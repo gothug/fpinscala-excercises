@@ -93,7 +93,16 @@ trait Stream[+A] {
       case _                            => None
     }
 
-  def startsWith[B](s: Stream[B]): Boolean = sys.error("todo")
+  def startsWith[B](s: Stream[B]): Boolean =
+    this.zipAll(s).takeWhile(_._2.nonEmpty) forAll {
+      case (v1, v2) => v1 == v2
+    }
+
+  def tails: Stream[Stream[A]] =
+    unfold(this) {
+      case Cons(h, t) => Some((Cons(() => h(), () => t()), t()))
+      case _          => None
+    } append Stream(empty)
 
   def toList: List[A] = {
     @annotation.tailrec
