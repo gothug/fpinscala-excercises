@@ -30,6 +30,9 @@ object RNG {
       val (a, rng2) = s(rng)
       (f(a), rng2)
     }
+  
+  def mapViaFlatMap[A,B](s: Rand[A])(f: A => B): Rand[B] =
+    flatMap(s)(a => { rng => (f(a), rng) })
 
   def nonNegativeInt(rng: RNG): (Int, RNG) = {
     val (i, r) = rng.nextInt
@@ -77,11 +80,48 @@ object RNG {
     loop(count, rng, Nil)
   }
 
-  def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = ???
+  def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+    rng => {
+      val (a, raa) = ra(rng)
+      val (b, rbb) = rb(raa)
+      
+      (f(a, b), rbb)
+    }
+  
+  def map2ViaFlatMap[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+    flatMap(ra)(a => map(rb)(b => f(a, b)))
 
-  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = ???
+  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] =
+    rng => {
+      def loop(as: List[Rand[A]], r: RNG, lst: List[A]): (List[A], RNG) =
+        as match {
+          case h :: t =>
+            val (v, rr) = h(r)
+            loop(t, rr, lst ::: List(v))
+          case _ => (lst, r)
+        }
+      
+      loop(fs, rng, Nil)
+    }
+  
+  def sequenceViaFoldRight[A](fs: List[Rand[A]]): Rand[List[A]] =
+    fs.foldRight(unit(List[A]()))((a: Rand[A], r: Rand[List[A]]) => map2(a, r)((a: A, b: List[A]) => a :: b))
+//    fs.foldRight(unit(List[A]()))((f, acc) => map2(f, acc)(_ :: _))
 
-  def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = ???
+  def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] =
+    rng => {
+      val (a, r) = f(rng)
+      
+      g(a)(r)
+    }
+
+  def nonNegativeLessThan(n: Int): Rand[Int] = { rng =>
+    val (i, rng2) = nonNegativeInt(rng)
+    val mod = i % n
+    if (i + (n-1) - mod >= 0)
+      (mod, rng2)
+    else nonNegativeLessThan(n)(rng)
+  }
 }
 
 case class State[S,+A](run: S => (A, S)) {
@@ -106,43 +146,54 @@ object State {
 object Test {
   def main(args: Array[String]): Unit = {
     printlnBulk(
-      "\n",
       "nonNegativeInt:",
       nonNegativeInt(Simple(42))
     )
 
     printlnBulk(
-      "\n",
       "double:",
       double(Simple(2000))
     )
 
     printlnBulk(
-      "\n",
       "intDouble:",
       intDouble(Simple(2000))
     )
 
     printlnBulk(
-      "\n",
       "doubleInt:",
       doubleInt(Simple(2000))
     )
 
     printlnBulk(
-      "\n",
       "double3:",
       double3(Simple(2000))
     )
 
     printlnBulk(
-      "\n",
       "ints:",
       ints(10)(Simple(2000))
     )
+
+    printlnBulk(
+      "sequence:",
+      sequence(List(unit(1), unit(2), unit(3)))(Simple(100))._1 == List(1, 2, 3)
+    )
+
+    printlnBulk(
+      "sequenceViaFoldRight:",
+      sequenceViaFoldRight(List(unit(1), unit(2), unit(3)))(Simple(100))._1 == List(1, 2, 3)
+    )
+
+    printlnBulk(
+      "mapViaFlatMap:",
+      mapViaFlatMap(_double)(_ * -1) { Simple(200) }
+    )
   }
 
-  def printlnBulk[T](ss: T*): Unit =
+  def printlnBulk[T](ss: T*): Unit = {
+    println()
     for (s <- ss)
       println(s)
+  }
 }
