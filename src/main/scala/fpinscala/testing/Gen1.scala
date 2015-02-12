@@ -1,47 +1,67 @@
 package fpinscala.testing
 
-import fpinscala.state._
-import fpinscala.state.RNG.Simple
+import fpinscalabook.state._
+import fpinscalabook.state.RNG.Simple
 
 /**
  * Created by kojuhovskiy on 11/02/15.
  */
-case class GenA[A](sample: State[RNG, A])
+case class Gen1[A](sample: State[RNG, A])
 
-object GenA {
-  def choose(start: Int, stopExclusive: Int): GenA[Int] = {
+object Gen1 {
+  def choose(start: Int, stopExclusive: Int): Gen1[Int] = {
     val run: RNG => (Int, RNG) = RNG.map(RNG.nonNegativeInt)(_ % 100)
     val state: State[RNG, Int] = State(run)
 
-    GenA(state)
+    Gen1(state)
   }
 
-  def unit[A](a: => A): GenA[A] = {
+  def unit[A](a: => A): Gen1[A] = {
     val run: RNG => (A, RNG) = RNG.unit(a)
     val state: State[RNG, A] = State(run)
 
-    GenA(state)
+    Gen1(state)
   }
+
+  def boolean: Gen1[Boolean] = {
+    val run: RNG => (Boolean, RNG) = RNG.map(RNG.int)(_ % 2 == 0)
+    Gen1(State(run))
+  }
+
+  def listOfN[A](n: Int, g: Gen1[A]): Gen1[List[A]] =
+    Gen1(State.sequence(List.fill(n)(g.sample)))
 }
 
 object Test extends App {
-  val gen = GenA.choose(0, 100)
+  def genTest[A](gen: Gen1[A]) = {
+    def loop(r: RNG, l: List[A]): List[A] = {
+      if (l.size > 10) {
+        l
+      } else {
+        gen.sample.run(r) match {
+          case (a, rng) =>
+            loop(rng, a :: l)
+        }
+      }
+    }
 
-  var s: RNG = Simple(1000)
-  var n = -1
+    loop(Simple(1000), List())
+  }
 
   printlnBulk(
-    "choose:"
+    "choose:",
+    genTest(Gen1.choose(0, 100)).mkString(" ")
   )
 
-  for (i <- 1 to 10) {
-    val r: (Int, RNG) = gen.sample.run(s)
+  printlnBulk(
+    "unit:",
+    genTest(Gen1.unit(66)).mkString(",")
+  )
 
-    n = r._1
-    s = r._2
-
-    println(n)
-  }
+  printlnBulk(
+    "boolean:",
+    genTest(Gen1.boolean).mkString(",")
+  )
 
   def printlnBulk[T](ss: T*): Unit = {
     println()
